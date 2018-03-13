@@ -43,6 +43,10 @@ public class CameraProvider implements ITextureProvider {
         try {
             mFrameSem=new Semaphore(0);
             mCamera=Camera.open(cameraId);
+
+            //小米5、5s这类奇葩手机不调用这句会导致图像预览方向错误
+            mCamera.setParameters(mCamera.getParameters());
+
             mCamera.setPreviewTexture(surface);
             surface.setOnFrameAvailableListener(frameListener);
             Camera.Size s=mCamera.getParameters().getPreviewSize();

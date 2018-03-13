@@ -73,7 +73,7 @@ public class StrengthenMp4MuxStore implements IHardStore {
         AvLog.d(tag,"enter mux loop");
         while (muxStarted){
             try {
-                HardMediaData data=cache.poll(1, TimeUnit.SECONDS);
+                HardMediaData data=cache.poll(50, TimeUnit.MILLISECONDS);
                 synchronized (Lock){
                     AvLog.d(tag,"data is null?"+(data==null));
                     if(muxStarted&&data!=null){
@@ -83,6 +83,7 @@ public class StrengthenMp4MuxStore implements IHardStore {
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
+                break;
             }
         }
         try {
