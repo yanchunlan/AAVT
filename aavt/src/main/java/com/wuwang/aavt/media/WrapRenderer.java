@@ -48,10 +48,10 @@ public class WrapRenderer implements Renderer {
             });
         }else if(flag==TYPE_CAMERA){
             mFilter.setVertexCo(new float[]{
-                    -1.0f, -1.0f,
-                    1.0f, -1.0f,
                     -1.0f, 1.0f,
                     1.0f, 1.0f,
+                    -1.0f, -1.0f,
+                    1.0f, -1.0f,
             });
         }
     }

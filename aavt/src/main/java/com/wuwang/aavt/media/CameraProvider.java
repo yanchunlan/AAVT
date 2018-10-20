@@ -22,6 +22,9 @@ import android.os.Looper;
 import com.wuwang.aavt.log.AvLog;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.Semaphore;
 
 /**
@@ -34,6 +37,8 @@ public class CameraProvider implements ITextureProvider {
 
     private Camera mCamera;
     private int cameraId=1;
+    private int minWidth = 640;
+    private float rate = 1.67f;
     private Semaphore mFrameSem;
     private String tag=getClass().getSimpleName();
 
@@ -43,10 +48,7 @@ public class CameraProvider implements ITextureProvider {
         try {
             mFrameSem=new Semaphore(0);
             mCamera=Camera.open(cameraId);
-
-            //小米5、5s这类奇葩手机不调用这句会导致图像预览方向错误
-            mCamera.setParameters(mCamera.getParameters());
-
+            onCameraOpened(mCamera);
             mCamera.setPreviewTexture(surface);
             surface.setOnFrameAvailableListener(frameListener);
             Camera.Size s=mCamera.getParameters().getPreviewSize();
@@ -58,6 +60,53 @@ public class CameraProvider implements ITextureProvider {
             e.printStackTrace();
         }
         return size;
+    }
+
+    /**
+     * Camera Open后，Preview前被调用的函数
+     * @param camera 打开的Camera
+     */
+    protected void onCameraOpened(Camera camera){
+        //小米5、5s这类奇葩手机不调用setParameters这句会导致图像预览方向错误
+        Camera.Parameters param = camera.getParameters();
+        List<Camera.Size> sizes = param.getSupportedPreviewSizes();
+        Collections.sort(sizes, new Comparator<Camera.Size>() {
+            @Override
+            public int compare(android.hardware.Camera.Size o1, android.hardware.Camera.Size o2) {
+                return o1.width - o2.width;
+            }
+        });
+        for (android.hardware.Camera.Size s : sizes) {
+            if (s.width >= minWidth) {
+                if (rate > 1.4) {
+                    if (s.width / (float) s.height > 1.4) {
+                        param.setPreviewSize(s.width, s.height);
+                        param.set("video-size", s.width + "x" + s.height);
+                        break;
+                    }
+                } else {
+                    if (s.width / (float) s.height < 1.4) {
+                        param.setPreviewSize(s.width, s.height);
+                        param.set("video-size", s.width + "x" + s.height);
+                        break;
+                    }
+                }
+            }
+        }
+        mCamera.setParameters(param);
+    }
+
+    public void setCameraSize(int minWidth,float rate){
+        this.minWidth = minWidth;
+        this.rate = rate;
+    }
+
+    public void switchCamera(){
+        cameraId^=1;
+    }
+
+    public void setDefaultCamera(int id){
+        cameraId = id;
     }
 
     @Override

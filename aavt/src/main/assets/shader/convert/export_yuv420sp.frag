@@ -51,22 +51,7 @@ vec4 calculateY(){
     oColor[3]=cY((rPosX+3.)/uWidth,textureYPos);
     return oColor;
 }
-
-//UV的计算，YUV420SP用，test
-vec4 calculateUV(){
-    float posX=floor(uWidth*vTextureCo.x);
-    float posY=floor(uHeight*(vTextureCo.y-0.2500));
-    //实际采样起始点对应图片的位置
-    float rPosX=mod(posX*4.,uWidth);
-    float rPosY=posY*8.+floor(posX*4./uWidth)*2.;
-    vec4 oColor=vec4(0);
-    oColor[0]= cU((rPosX+1.)/uWidth,(rPosY+1.)/uHeight);
-    oColor[1]= cV((rPosX+1.)/uWidth,(rPosY+1.)/uHeight);
-    oColor[2]= cU((rPosX+3.)/uWidth,(rPosY+1.)/uHeight);
-    oColor[3]= cV((rPosX+3.)/uWidth,(rPosY+1.)/uHeight);
-    return oColor;
-}
-
+gi git
 void main() {
     if(vTextureCo.y<0.2500){
         gl_FragColor=calculateY();
