@@ -2,8 +2,11 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/AAVT.iml" filepath="$PROJECT_DIR$/.idea/AAVT.iml" />
       <module fileurl="file://$PROJECT_DIR$/AAVT.iml" filepath="$PROJECT_DIR$/AAVT.iml" />
       <module fileurl="file://$PROJECT_DIR$/aavt/aavt.iml" filepath="$PROJECT_DIR$/aavt/aavt.iml" />
+      <module fileurl="file://$PROJECT_DIR$/aavt/aavt.iml" filepath="$PROJECT_DIR$/aavt/aavt.iml" />
+      <module fileurl="file://$PROJECT_DIR$/examples/examples.iml" filepath="$PROJECT_DIR$/examples/examples.iml" />
       <module fileurl="file://$PROJECT_DIR$/examples/examples.iml" filepath="$PROJECT_DIR$/examples/examples.iml" />
     </modules>
   </component>
