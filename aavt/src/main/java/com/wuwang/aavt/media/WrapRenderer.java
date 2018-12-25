@@ -27,7 +27,7 @@ import com.wuwang.aavt.utils.MatrixUtils;
 public class WrapRenderer implements Renderer {
 
     private Renderer mRenderer;
-    private OesFilter mFilter;
+    private OesFilter mFilter;  // 里面的数据都绘制到了FBO去了，真实绘制在水印的draw里面
 
     public static final int TYPE_MOVE=0;
     public static final int TYPE_CAMERA=1;

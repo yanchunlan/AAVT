@@ -121,6 +121,7 @@ public enum GpuUtils {
                 GL10.GL_TEXTURE_WRAP_S, GL10.GL_CLAMP_TO_EDGE);
         GLES20.glTexParameteri(target,
                 GL10.GL_TEXTURE_WRAP_T, GL10.GL_CLAMP_TO_EDGE);
+//        GLES20.glBindTexture(target, 0);
         return texture[0];
     }
 

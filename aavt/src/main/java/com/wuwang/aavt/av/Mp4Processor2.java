@@ -14,6 +14,7 @@
 package com.wuwang.aavt.av;
 
 import com.wuwang.aavt.media.Mp4Provider;
+import com.wuwang.aavt.media.SoundRecorder;
 import com.wuwang.aavt.media.SurfaceEncoder;
 import com.wuwang.aavt.media.SurfaceShower;
 import com.wuwang.aavt.media.VideoSurfaceProcessor;
@@ -61,7 +62,9 @@ public class Mp4Processor2 {
     }
 
     public void setSurface(Object surface){
-        mShower.setSurface(surface);
+        if (mShower != null) {
+            mShower.setSurface(surface);
+        }
     }
 
     public void setInputPath(String path){
@@ -73,7 +76,9 @@ public class Mp4Processor2 {
     }
 
     public void setPreviewSize(int width,int height){
-        mShower.setOutputSize(width,height);
+        if (mShower != null) {
+            mShower.setOutputSize(width,height);
+        }
     }
 
     public void open(){
@@ -85,11 +90,15 @@ public class Mp4Processor2 {
     }
 
     public void startPreview(){
-        mShower.open();
+        if (mShower != null) {
+            mShower.open();
+        }
     }
 
     public void stopPreview(){
-        mShower.close();
+        if (mShower != null) {
+            mShower.close();
+        }
     }
 
     public void startRecord(){

@@ -50,6 +50,16 @@ public class LazyFilter extends BaseFilter {
                         "void main() {\n" +
                         "    gl_FragColor = texture2D( uTexture, vTextureCo);\n" +
                         "}");
+
+
+
+        // 再把oes,与水印的数据翻转回来 ， 突破与相机都采用了此方法，所以都翻转回来了，保持顶点，纹理 方向一致
+        setVertexCo(new float[]{
+                -1.0f,1.0f,
+                -1.0f,-1.0f,
+                1.0f,1.0f,
+                1.0f,-1.0f,
+        });
     }
 
     @Override

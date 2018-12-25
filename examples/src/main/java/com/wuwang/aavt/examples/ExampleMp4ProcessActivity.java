@@ -19,7 +19,7 @@ import android.view.View;
 import com.wuwang.aavt.av.Mp4Processor2;
 
 public class ExampleMp4ProcessActivity extends AppCompatActivity {
-
+    private static final String TAG = "ExampleMp4ProcessActivi";
     private SurfaceView mSurfaceView;
     private Mp4Processor2 mMp4Processor;
     private String tempPath= Environment.getExternalStorageDirectory().getAbsolutePath()+"/test.mp4";
@@ -31,6 +31,7 @@ public class ExampleMp4ProcessActivity extends AppCompatActivity {
         mMp4Processor=new Mp4Processor2();
         mMp4Processor.setInputPath(Environment.getExternalStorageDirectory().getAbsolutePath()+"/a.mp4");
         mMp4Processor.setOutputPath(tempPath);
+
         mSurfaceView= (SurfaceView) findViewById(R.id.mSurfaceView);
         mSurfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
@@ -87,6 +88,7 @@ public class ExampleMp4ProcessActivity extends AppCompatActivity {
         if (resultCode == RESULT_OK) {
             String path = getRealFilePath(data.getData());
             if (path != null) {
+                Log.d(TAG, "onActivityResult: path: "+path);
                 mMp4Processor.setInputPath(path);
             }
         }
