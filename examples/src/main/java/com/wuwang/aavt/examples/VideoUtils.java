@@ -52,7 +52,7 @@ public class VideoUtils {
                         .setPositionLogo(50, 20, 100)
                         .setGravityLogo(Gravity.RIGHT)
                         .setBitmapDirector(DrawUtils.createTextImage(WaterMarkFilter.bmpNumber, R.mipmap.ic_launcher))
-                        .setTextOverView("你地哦解散第三部蒂萨偶今年的欧IP打死哦的美女撒泼ID那都is阿玛尼的贫困拉上你买的爱搭配控杀快点嘛奥斯卡面对阿婆说昆明的烧烤吗的");
+                        .setTextOverView("你地哦解散第三部 爱搭配控杀快点嘛奥斯卡面对阿婆明的烧烤吗的");
                 mFilter.create();
             }
 

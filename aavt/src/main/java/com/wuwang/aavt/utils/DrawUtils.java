@@ -10,6 +10,7 @@ import android.graphics.Paint;
 import android.os.Build;
 import android.support.annotation.DrawableRes;
 import android.text.TextUtils;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +43,7 @@ public class DrawUtils {
         return createTextImage(context.getResources(), drawable, BitmapNumber, title, desc);
     }
 
-    public static List<Bitmap> createTextImage(Resources res, @DrawableRes int drawable, int BitmapNumber,
+    public static List<Bitmap> createTextImage(Resources res, @DrawableRes int drawable, int bitmapNumber,
                                                List<String> title, List<String> desc) {
         if ((title == null || title.isEmpty()) && (desc == null || desc.isEmpty())) {
             return null;
@@ -54,13 +55,13 @@ public class DrawUtils {
         Paint mPaintLogo = new Paint();
         Paint mPaintBg = new Paint();
 
-        mPaintTitle.setColor(Color.WHITE);
+//        mPaintTitle.setColor(Color.WHITE);
         mPaintTitle.setTextSize(dp2px(17));
         mPaintTitle.setStyle(Paint.Style.FILL);
         mPaintTitle.setAntiAlias(true);
 
 
-        mPaintDesc.setColor(Color.WHITE);
+//        mPaintDesc.setColor(Color.WHITE);
         mPaintDesc.setTextSize(dp2px(13));
         mPaintDesc.setStyle(Paint.Style.FILL);
         mPaintDesc.setAntiAlias(true);
@@ -201,12 +202,21 @@ public class DrawUtils {
         maxW += dp2px(80);
 
         List<Bitmap> data = new ArrayList<Bitmap>();
-        for (int i = BitmapNumber; i > 0; i--) {
+        for (int i = bitmapNumber; i > 0; i--) {
             // alpha
             int alpha = 255 / i;
             mPaintLogo.setAlpha(alpha);
             mPaintTitle.setAlpha(alpha);
             mPaintDesc.setAlpha(alpha);
+            mPaintBg.setAlpha(alpha/5); // 透明度初始值是1/5 所以需要/5
+
+//            mPaintLogo.setARGB(alpha, 255, 255, 255);
+//            mPaintTitle.setARGB(alpha, 255, 255, 255);
+//            mPaintDesc.setARGB(alpha, 255, 255, 255);
+//            mPaintBg.setARGB(alpha/5, 0, 0, 0); // 透明度初始值是1/5 所以需要/5
+
+
+
             // draw
             Bitmap b = Bitmap.createBitmap((int) maxW, (int) (sh + bh / 2), Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(b);
@@ -323,7 +333,6 @@ public class DrawUtils {
             w = maxWidth;
         }
         w += maxWidth; // 多添加一个内容，为了防止滚动没了，就不显示黑边
-
 
         Bitmap b = Bitmap.createBitmap(w, (int) ((bottom - top) + padding * 2), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(b);

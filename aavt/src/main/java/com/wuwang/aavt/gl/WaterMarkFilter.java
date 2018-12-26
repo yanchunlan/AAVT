@@ -62,7 +62,12 @@ public class WaterMarkFilter extends LazyFilter {
     private float ratio_overView = 1;  //  ratio=w/h
     private boolean isCreateOverview = false;
     private final Object overview_Lock = new Object();
-    private int lastX = 0;
+    // Overview动画
+    private int lastX = 0; // 不断累加x，平移图片达到动画效果
+    private boolean canWaterMark = false;
+    private int maxW = 0;
+    private final int speed = 3; //水印滚动速度
+    private final int height = 90; //水印高度
 
 
     @Override
@@ -109,10 +114,9 @@ public class WaterMarkFilter extends LazyFilter {
             filter_Logo.draw(textureId_Logo);
 
 
-//            Log.d("123", "onDrawChild: "+time);
             // 绘制导演信息
             if (textureId_director != null && textureId_director.length != 0) {
-                if (time < 100000000L) {
+                if (time < 100000000L) { // 100ms内不添加动画
 
                 }
 //                else if (time < 1000000000L) { // 500ms 做完 显示动画
@@ -137,20 +141,15 @@ public class WaterMarkFilter extends LazyFilter {
             }
 
             // 绘制概述信息
-            Log.d("123", "onDrawChild:time  " + time);
-//            Log.d("123", "onDrawChild:time  length " + textureId_overview.length);
-//            Log.d("123", "onDrawChild:number  " + ((int) (time / 1000000000L)));
-            if (textureId_overview != -1  ) {
-//                int cTime = ((int) (time / 2000000000L)) % (textureId_overview.length);
-////                Log.d("123", "onDrawChild: cTime " + cTime + " lastTime " + lastTime);
-//                if (cTime != lastTime) {
-//                    lastTime = cTime;
-//                }
-                lastX+=4;
-                if (lastX >= port_overview[0]) {
-                    lastX = 0;
+            if (textureId_overview != -1) {
+                if (time > 3000000000L&&canWaterMark) { // 大于1s才开始动画
+                    lastX -= speed;
+                    // 重复动画
+                    if (lastX <= (-port_overview[0]+maxW)) {
+                        lastX = speed*3;
+                    }
                 }
-                GLES20.glViewport(-lastX, 0, port_overview[0], port_overview[1]);
+                GLES20.glViewport(lastX, 0, port_overview[0], port_overview[1]);
                 filter_overview.draw(textureId_overview);
             }
             GLES20.glDisable(GLES20.GL_BLEND);
@@ -284,11 +283,16 @@ public class WaterMarkFilter extends LazyFilter {
             public void run() {
                 if (text != null && !TextUtils.isEmpty(text)) {
                     // 横屏最大宽度是3/4，竖屏是全屏
-                    Bitmap bmp = DrawUtils.textToBitmap(text, mWidth > mHeight ? mWidth * 3 / 4 : mWidth);
+                    maxW = mWidth > mHeight ? mWidth * 3 / 4 : mWidth;
+                    Bitmap bmp = DrawUtils.textToBitmap(text, maxW);
+                    // 判断文字是否超过一屏幕，决定动画启动与否
+                    if (bmp.getWidth() - maxW > maxW) {
+                        canWaterMark = true;
+                    }
                     if (ratio_overView == 1) {
                         ratio_overView = bmp.getWidth() * 1.0f / bmp.getHeight();
                     }
-                    if (textureId_overview== -1) {
+                    if (textureId_overview == -1) {
                         textureId_overview = GpuUtils.createTextureID(false);
                     } else {
                         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId_overview);
@@ -304,7 +308,7 @@ public class WaterMarkFilter extends LazyFilter {
             @Override
             public void run() {
                 //  根据屏幕适配 根据屏幕适配 横屏宽度显示一半适配，竖屏满屏
-                port_overview[1] = 80;
+                port_overview[1] = height;
                 port_overview[0] = (int) (port_overview[1] * ratio_overView);
                 filter_overview.sizeChanged(port_overview[0], port_overview[1]);
             }
