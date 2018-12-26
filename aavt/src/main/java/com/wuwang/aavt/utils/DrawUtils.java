@@ -23,7 +23,7 @@ public class DrawUtils {
 
     public static Context context;
 
-    public static   List<Bitmap> createTextImage(  int BitmapNumber, int drawable) {
+    public static List<Bitmap> createTextImage(int BitmapNumber, int drawable) {
         ArrayList<String> title = new ArrayList<>();
         ArrayList<String> desc = new ArrayList<>();
 
@@ -43,7 +43,7 @@ public class DrawUtils {
     }
 
     public static List<Bitmap> createTextImage(Resources res, @DrawableRes int drawable, int BitmapNumber,
-                                        List<String> title, List<String> desc) {
+                                               List<String> title, List<String> desc) {
         if ((title == null || title.isEmpty()) && (desc == null || desc.isEmpty())) {
             return null;
         }
@@ -300,6 +300,36 @@ public class DrawUtils {
             }
         }
         return data;
+    }
+
+    public static Bitmap textToBitmap(String text,int maxWidth) {
+        if (text == null || TextUtils.isEmpty(text)) {
+            return null;
+        }
+        Paint paint = new Paint();
+        paint.setColor(Color.WHITE);
+        paint.setTextSize(dp2px(18));
+        paint.setStyle(Paint.Style.FILL);
+        paint.setAntiAlias(true);
+
+        float top = paint.getFontMetrics().top;
+        float bottom = paint.getFontMetrics().bottom;
+
+        float width = paint.measureText(text, 0, text.length());
+        int padding = 10; // 内边距
+
+        int w = (int) (width + padding * 2);
+        if (w < maxWidth) {
+            w = maxWidth;
+        }
+        w += maxWidth; // 多添加一个内容，为了防止滚动没了，就不显示黑边
+
+
+        Bitmap b = Bitmap.createBitmap(w, (int) ((bottom - top) + padding * 2), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(b);
+        canvas.drawColor(Color.argb(51, 0, 0, 0)); // 20%透明度
+        canvas.drawText(text, padding, -top + padding, paint);
+        return b;
     }
 
     public Bitmap getAlplaBitmap(Bitmap sourceImg, int number) {

@@ -58,11 +58,11 @@ public class WaterMarkFilter extends LazyFilter {
     // Overview
     private int[] port_overview = new int[2];
     private LazyFilter filter_overview = null;
-    private int[] textureId_overview = null;
+    private int textureId_overview = -1;
     private float ratio_overView = 1;  //  ratio=w/h
     private boolean isCreateOverview = false;
     private final Object overview_Lock = new Object();
-    private int lastTime = -1;
+    private int lastX = 0;
 
 
     @Override
@@ -138,16 +138,20 @@ public class WaterMarkFilter extends LazyFilter {
 
             // 绘制概述信息
             Log.d("123", "onDrawChild:time  " + time);
-            Log.d("123", "onDrawChild:time  length " + textureId_overview.length);
-            Log.d("123", "onDrawChild:number  " + ((int) (time / 1000000000L)));
-            if (textureId_overview != null && textureId_overview.length != 0) {
-                int cTime = ((int) (time / 1000000000L)) % (textureId_overview.length);
-                Log.d("123", "onDrawChild: cTime " + cTime + " lastTime " + lastTime);
-                if (cTime != lastTime) {
-                    lastTime = cTime;
+//            Log.d("123", "onDrawChild:time  length " + textureId_overview.length);
+//            Log.d("123", "onDrawChild:number  " + ((int) (time / 1000000000L)));
+            if (textureId_overview != -1  ) {
+//                int cTime = ((int) (time / 2000000000L)) % (textureId_overview.length);
+////                Log.d("123", "onDrawChild: cTime " + cTime + " lastTime " + lastTime);
+//                if (cTime != lastTime) {
+//                    lastTime = cTime;
+//                }
+                lastX+=4;
+                if (lastX >= port_overview[0]) {
+                    lastX = 0;
                 }
-                GLES20.glViewport(0, 0, port_overview[0], port_overview[1]);
-                filter_overview.draw(textureId_overview[lastTime]);
+                GLES20.glViewport(-lastX, 0, port_overview[0], port_overview[1]);
+                filter_overview.draw(textureId_overview);
             }
             GLES20.glDisable(GLES20.GL_BLEND);
 
@@ -280,24 +284,17 @@ public class WaterMarkFilter extends LazyFilter {
             public void run() {
                 if (text != null && !TextUtils.isEmpty(text)) {
                     // 横屏最大宽度是3/4，竖屏是全屏
-                    List<Bitmap> bmpData = DrawUtils.createTextImage(text, mWidth > mHeight ? mWidth * 3 / 4 : mWidth);
-                    int len = bmpData.size();
-                    if (textureId_overview == null) {
-                        textureId_overview = new int[len];
+                    Bitmap bmp = DrawUtils.textToBitmap(text, mWidth > mHeight ? mWidth * 3 / 4 : mWidth);
+                    if (ratio_overView == 1) {
+                        ratio_overView = bmp.getWidth() * 1.0f / bmp.getHeight();
                     }
-
-                    for (int i = 0; i < len; i++) {
-                        Bitmap bmp = bmpData.get(i);
-                        // 只设置一次
-                        if (ratio_overView == 1) {
-                            ratio_overView = bmp.getWidth() * 1.0f / bmp.getHeight();
-                        }
-
-                        int textureId = GpuUtils.createTextureID(false);
-                        textureId_overview[i] = textureId;
-                        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
-                        bmp.recycle();
+                    if (textureId_overview== -1) {
+                        textureId_overview = GpuUtils.createTextureID(false);
+                    } else {
+                        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId_overview);
                     }
+                    GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
+                    bmp.recycle();
                 } else {
                     deleteOverViewTexture();
                 }
@@ -307,12 +304,8 @@ public class WaterMarkFilter extends LazyFilter {
             @Override
             public void run() {
                 //  根据屏幕适配 根据屏幕适配 横屏宽度显示一半适配，竖屏满屏
-                if (mWidth > mHeight) {
-                    port_overview[0] = mWidth * 3 / 4;
-                } else {
-                    port_overview[0] = mWidth;
-                }
-                port_overview[1] = (int) (port_overview[0] / ratio_overView);
+                port_overview[1] = 80;
+                port_overview[0] = (int) (port_overview[1] * ratio_overView);
                 filter_overview.sizeChanged(port_overview[0], port_overview[1]);
             }
         });
@@ -321,12 +314,9 @@ public class WaterMarkFilter extends LazyFilter {
 
     private void deleteOverViewTexture() {
         synchronized (overview_Lock) {
-            if (textureId_overview != null) {
-                int len = textureId_overview.length;
-                if (len != 0) {
-                    GLES20.glDeleteTextures(len, textureId_overview, 0);
-                    textureId_overview = null;
-                }
+            if (textureId_overview != -1) {
+                GLES20.glDeleteTextures(1, new int[]{textureId_overview}, 0);
+                textureId_overview = -1;
             }
         }
     }
