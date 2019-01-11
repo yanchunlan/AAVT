@@ -6,12 +6,10 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -81,6 +79,18 @@ public class MainActivity extends AppCompatActivity {
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
                 startActivityForResult(intent, 1);
                 break;
+            case R.id.MP4progress_water2:
+                Intent intent2 = new Intent(Intent.ACTION_GET_CONTENT);
+                //intent.setType(“image/*”);//选择图片
+                //intent.setType(“audio/*”); //选择音频
+                intent2.setType("video/mp4"); //选择视频 （mp4 3gp 是android支持的视频格式）
+                //intent.setType(“video/*;image/*”);//同时选择视频和图片
+                //intent.setType("*/*");//无类型限制
+                intent2.addCategory(Intent.CATEGORY_OPENABLE);
+                startActivityForResult(intent2, 2);
+                break;
+
+
             default:
                 break;
         }
@@ -109,37 +119,99 @@ public class MainActivity extends AppCompatActivity {
                         });
                     }
                 }, 0, 1000);
+
+
                 try {
                     final long startTime = new Date().getTime();
-                    VideoUtils.transcodeVideoFile( path, tempPath, 0, 0,MainActivity.this, new Mp4Processor.OnProgressListener() {
-                        @Override
-                        public void onProgress(final long max, final long current) {
-                            Log.d(TAG, "onProgress: " + max + " " + current);
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    progress.setText("total: " + max / 1000000.0f + " progress: " + current / 1000000.0f);
-                                }
-                            });
-                        }
+                    if (requestCode == 1) { // 仅供测试，调试
+                        VideoUtils.transcodeVideoFile(path, tempPath, 0, 0, MainActivity.this, new Mp4Processor.OnProgressListener() {
+                            @Override
+                            public void onProgress(final long max, final long current) {
+                                Log.d(TAG, "onProgress: " + max + " " + current);
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        progress.setText("total: " + max / 1000000.0f + " progress: " + current / 1000000.0f);
+                                    }
+                                });
+                            }
 
-                        @Override
-                        public void onComplete(final String path) {
-                            Log.d(TAG, "onComplete: " + path);
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    timerTask.cancel();
-                                    long endTime = new Date().getTime();
-                                    progress.append(" \npath: " + path);
-                                    progress.append(" \n耗时(s): " + (endTime - startTime) / 1000);
+                            @Override
+                            public void onComplete(final String path) {
+                                Log.d(TAG, "onComplete: " + path);
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        timerTask.cancel();
+                                        long endTime = new Date().getTime();
+                                        progress.append(" \npath: " + path);
+                                        progress.append(" \n耗时(s): " + (endTime - startTime) / 1000);
 //                                    Intent v=new Intent(Intent.ACTION_VIEW);
 //                                    v.setDataAndType(Uri.parse(path),"video/mp4");
 //                                    MainActivity.this.startActivity(v);
-                                }
-                            });
-                        }
-                    });
+                                    }
+                                });
+                            }
+                        });
+                    } else if (requestCode == 2) { // 项目中已经有使用
+                        String[] title = new String[2];
+                        String[] desc = new String[3];
+                        title[0] = "徐实打实大苏打实打实实打实大苏打是寅尹";
+                        title[1] = "徐实打实大苏打实打实实打实大苏打是寅尹";
+                        desc[0] = "徐实打实大苏打实打实实打实大苏打是寅尹";
+                        desc[1] = "徐实打实大苏打实打实实打实大苏打是寅尹";
+                        desc[2] = "徐实打实大苏打实打实实打实大苏打是寅尹";
+                        com.example.mp4processor.utils.VideoUtils.start(path, tempPath,
+                                R.mipmap.logo,
+                                R.mipmap.ic_launcher,
+                                R.mipmap.icon_place_stroke,
+                                title,
+                                desc,
+                                "ssssssssssssssssssssssssss",
+                                "ttttttttttttttt",
+                                "location",
+                                MainActivity.this,
+                                new com.example.mp4processor.av.Mp4Processor.OnProgressListener() {
+                                    @Override
+                                    public void onProgress(final long max, final long current) {
+                                        Log.d(TAG, "onProgress: " + max + " " + current);
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                progress.setText("total: " + max / 1000000.0f + " progress: " + current / 1000000.0f);
+                                            }
+                                        });
+                                    }
+
+                                    @Override
+                                    public void onComplete(final String path) {
+                                        Log.d(TAG, "onComplete: " + path);
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                timerTask.cancel();
+                                                long endTime = new Date().getTime();
+                                                progress.append(" \npath: " + path);
+                                                progress.append(" \n耗时(s): " + (endTime - startTime) / 1000);
+//                                    Intent v=new Intent(Intent.ACTION_VIEW);
+//                                    v.setDataAndType(Uri.parse(path),"video/mp4");
+//                                    MainActivity.this.startActivity(v);
+                                            }
+                                        });
+                                    }
+
+                                    @Override
+                                    public void onError() {
+                                        Log.d(TAG, "onError: ");
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                progress.setText("error");
+                                            }
+                                        });
+                                    }
+                                });
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

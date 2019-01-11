@@ -1,1 +1,1 @@
-include ':examples', ':aavt'
+include ':examples', ':aavt', ':mp4processor'

@@ -6,6 +6,7 @@
       <module fileurl="file://$PROJECT_DIR$/AAVT.iml" filepath="$PROJECT_DIR$/AAVT.iml" />
       <module fileurl="file://$PROJECT_DIR$/aavt/aavt.iml" filepath="$PROJECT_DIR$/aavt/aavt.iml" />
       <module fileurl="file://$PROJECT_DIR$/examples/examples.iml" filepath="$PROJECT_DIR$/examples/examples.iml" />
+      <module fileurl="file://$PROJECT_DIR$/mp4processor/mp4processor.iml" filepath="$PROJECT_DIR$/mp4processor/mp4processor.iml" />
     </modules>
   </component>
 </project>

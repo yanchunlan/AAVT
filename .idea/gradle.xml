@@ -11,6 +11,7 @@
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/aavt" />
             <option value="$PROJECT_DIR$/examples" />
+            <option value="$PROJECT_DIR$/mp4processor" />
           </set>
         </option>
         <option name="resolveModulePerSourceSet" value="false" />
