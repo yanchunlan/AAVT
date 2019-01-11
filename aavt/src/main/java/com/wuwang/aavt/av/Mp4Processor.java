@@ -199,7 +199,7 @@ public class Mp4Processor {
                     mVideoDecoderTrack = i;
 
                     MediaFormat originFormat = mExtractor.getTrackFormat(mVideoDecoderTrack);
-                    int frameRate = originFormat.getInteger(MediaFormat.KEY_FRAME_RATE);
+                    int frameRate = originFormat.containsKey(MediaFormat.KEY_FRAME_RATE) ? originFormat.getInteger(MediaFormat.KEY_FRAME_RATE) : 0;
                     frameRate = frameRate == 0 ? 24 : frameRate;
 
                     mTotalVideoTime = Long.valueOf(mMetRet.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));

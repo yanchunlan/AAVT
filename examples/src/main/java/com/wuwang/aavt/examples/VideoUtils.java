@@ -48,11 +48,12 @@ public class VideoUtils {
                 mFilter = new WaterMarkFilter();
                 DrawUtils.context = context;
                 ((WaterMarkFilter) mFilter)
-                        .setBitmapLogo(BitmapFactory.decodeResource(context.getResources(), R.mipmap.ic_launcher))
-                        .setPositionLogo(50, 20, 100)
+                        .setBitmapLogo(BitmapFactory.decodeResource(context.getResources(), R.mipmap.logo))
+                        .setPositionLogo(20, 20)
                         .setGravityLogo(Gravity.RIGHT)
-                        .setBitmapDirector(DrawUtils.createTextImage(WaterMarkFilter.bmpNumber, R.mipmap.ic_launcher))
-                        .setTextOverView("你地哦解散第三部 爱搭配控杀快点嘛奥斯卡面对阿婆明的烧烤吗的");
+                        .setBitmapDirector(R.mipmap.icon_movie_water_mark)
+                        .setTextOverView("你地哦解散第 的所得税的实多岁的实打实的实打实的所得税实打实的收打实的实打实的实打实的所得税")
+                        .setTextTitleAndLocation("这里是影片名", "深圳南山区",R.mipmap.icon_place_stroke);
                 mFilter.create();
             }
 

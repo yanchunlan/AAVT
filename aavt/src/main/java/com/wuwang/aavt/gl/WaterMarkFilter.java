@@ -53,7 +53,7 @@ public class WaterMarkFilter extends LazyFilter {
     private float ratio_director = 1;  //  ratio=w/h
     private boolean isCreateDirector = false;
     private final Object director_Lock = new Object();
-    public static final int bmpNumber = 5;  // 控制动画的帧数
+    public static final int bmpNumber = 1;  // 控制动画的帧数
 
     // Overview
     private int[] port_overview = new int[2];
@@ -65,9 +65,14 @@ public class WaterMarkFilter extends LazyFilter {
     // Overview动画
     private int lastX = 0; // 不断累加x，平移图片达到动画效果
     private boolean canWaterMark = false;
-    private int maxW = 0;
     private final int speed = 3; //水印滚动速度
-    private final int height = 90; //水印高度
+
+    // title location
+    private int[] port_title = new int[2];
+    private LazyFilter filter_title = null;
+    private int textureId_title = -1; // textureId
+    private float ratio_title = 1;  //  ratio=w/h 宽高比
+    private boolean isCreateTitle = false;
 
 
     @Override
@@ -89,6 +94,14 @@ public class WaterMarkFilter extends LazyFilter {
                 }
             };
             filter_overview.create();
+        }
+        if (isCreateTitle) {
+            filter_title = new LazyFilter() {
+                @Override
+                protected void onClear() {
+                }
+            };
+            filter_title.create();
         }
     }
 
@@ -131,9 +144,12 @@ public class WaterMarkFilter extends LazyFilter {
                     filter_director.draw(textureId_director[textureId_director.length - 1]);
                 } else if (time < 5000000000L) { //500ms 做完 退出动画
                     GLES20.glViewport((mWidth - port_director[0]) / 2, (mHeight - port_director[1]) / 2, port_director[0], port_director[1]);
-                    long interval = 3000000000L / bmpNumber;
-                    int n = (int) ((6000000000L - time) / interval);
+                    long interval = 2000000000L / bmpNumber;
+                    int n = (int) ((5000000000L - time) / interval);
 //                    Log.d("123", "onDrawChild:n  "+n);
+                    if (n >= textureId_director.length) {
+                        n = textureId_director.length - 1;
+                    }
                     filter_director.draw(textureId_director[n]);
                 } else {
                     deleteDirectorTexture();
@@ -142,16 +158,28 @@ public class WaterMarkFilter extends LazyFilter {
 
             // 绘制概述信息
             if (textureId_overview != -1) {
-                if (time > 3000000000L&&canWaterMark) { // 大于1s才开始动画
+                if (canWaterMark && time > 3000000000L) { // 大于1s才开始动画
                     lastX -= speed;
                     // 重复动画
-                    if (lastX <= (-port_overview[0]+maxW)) {
-                        lastX = speed*3;
+                    if (lastX <= (-port_overview[0] + mWidth)) {
+                        lastX = speed * 3;
                     }
                 }
                 GLES20.glViewport(lastX, 0, port_overview[0], port_overview[1]);
                 filter_overview.draw(textureId_overview);
             }
+
+            // 绘制标题信息
+            if (textureId_title != -1) {
+                // 概述有无决定其高度
+                if (textureId_overview != -1) {
+                    GLES20.glViewport(0, port_overview[1], port_title[0], port_title[1]);
+                } else {
+                    GLES20.glViewport(0, 0, port_title[0], port_title[1]);
+                }
+                filter_title.draw(textureId_title);
+            }
+
             GLES20.glDisable(GLES20.GL_BLEND);
 
             GLES20.glViewport(viewPort[0], viewPort[1], viewPort[2], viewPort[3]);
@@ -159,15 +187,20 @@ public class WaterMarkFilter extends LazyFilter {
     }
 
     // -----------------------------------  set logo  start   ----------------------------------------
-    public WaterMarkFilter setPositionLogo(final int x, final int y, final int width) {
+    public WaterMarkFilter setPositionLogo(final int x, final int y) {
         port_Logo[0] = x;
         port_Logo[1] = y;
-        port_Logo[2] = width;
-        port_Logo[3] = (int) (width / ratio_Logo);
         runOnGLThread(new Runnable() {
             @Override
             public void run() {
-                filter_Logo.sizeChanged(width, (int) (width / ratio_Logo));
+                if (mWidth > mHeight) {  // 横屏 依据横屏适配
+                    port_Logo[2] = (int) (mWidth * 90f / 667);
+                    port_Logo[3] = (int) (port_Logo[2] / ratio_Logo);
+                } else { // 竖屏
+                    port_Logo[2] = (int) (mWidth * 90f / 375);
+                    port_Logo[3] = (int) (port_Logo[2] / ratio_Logo);
+                }
+                filter_Logo.sizeChanged(port_Logo[2], port_Logo[3]);
             }
         });
         return this;
@@ -184,8 +217,6 @@ public class WaterMarkFilter extends LazyFilter {
             public void run() {
                 if (bmp != null) {
                     ratio_Logo = bmp.getWidth() * 1.0f / bmp.getHeight();
-                    port_Logo[3] = (int) (port_Logo[2] / ratio_Logo); // 此处需要重置一下h
-
                     if (textureId_Logo == -1) {
                         textureId_Logo = GpuUtils.createTextureID(false);
                     } else {
@@ -196,6 +227,7 @@ public class WaterMarkFilter extends LazyFilter {
                 } else {
                     if (textureId_Logo != -1) {
                         GLES20.glDeleteTextures(1, new int[]{textureId_Logo}, 0);
+                        textureId_Logo = -1;
                     }
                 }
             }
@@ -207,8 +239,8 @@ public class WaterMarkFilter extends LazyFilter {
 
     // -----------------------------------  set director  start   ----------------------------------------
     // 导演
-    public WaterMarkFilter setBitmapDirector(final List<Bitmap> bmpData) {
-        if (bmpData == null || bmpData.isEmpty()) {
+    public WaterMarkFilter setBitmapDirector(final int Drawable) {
+        if (Drawable == 0) {
             isCreateDirector = false;
             return this;
         }
@@ -216,23 +248,50 @@ public class WaterMarkFilter extends LazyFilter {
         runOnGLThread(new Runnable() {
             @Override
             public void run() {
-                if (bmpData != null && !bmpData.isEmpty()) {
-                    int len = bmpData.size();
-                    if (textureId_director == null) {
-                        textureId_director = new int[len];
-                    }
+                if (Drawable != 0) {
+                    float padding_5 = 5f; // 只计算5距离，进去界面单独计算间隔
+                    float textHeight = 0;
+                    if (mWidth > mHeight) { // 高度适配
+                        port_director[1] = mHeight * 231 / 375;
+                        port_director[0] = mHeight * 294 / 375; // port_director[1] * 294 / 231;
+                        textHeight = (mHeight * 24f / 375);
+                        padding_5 = mWidth * 5f / 667;
+                    } else { // 宽度适配
+//                        port_director[0] = mWidth * 294 / 667;
+//                        port_director[1] = mWidth * 231 / 667; // port_director[0]*231/294;
+                        // 竖屏 宽度加大100 ，294+100=394
+                       port_director[0] = mWidth * 394 / 667;
+                        port_director[1] = mWidth * 231 / 667; // port_director[0]*231/294;
 
-                    for (int i = 0; i < len; i++) {
-                        Bitmap bmp = bmpData.get(i);
-                        // 只设置一次
-                        if (ratio_director == 1) {
-                            ratio_director = bmp.getWidth() * 1.0f / bmp.getHeight();
+
+                        textHeight = (mHeight * 24f / 667);
+                        padding_5 = mWidth * 5f / 375;
+                    }
+                    List<Bitmap> bmpData = DrawUtils.createTextImage(bmpNumber, Drawable, port_director[0], port_director[1], textHeight, padding_5, new DrawUtils.CallBack() {
+                        @Override
+                        public void callBackWH(int width, int height) {
+                            port_director[0] = width;
+                            port_director[1] = height;
+                        }
+                    });
+                    if (bmpData != null && !bmpData.isEmpty()) {
+                        int len = bmpData.size();
+                        if (textureId_director == null) {
+                            textureId_director = new int[len];
                         }
 
-                        int textureId = GpuUtils.createTextureID(false);
-                        textureId_director[i] = textureId;
-                        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
-                        bmp.recycle();
+                        for (int i = 0; i < len; i++) {
+                            Bitmap bmp = bmpData.get(i);
+                            // 只设置一次
+//                            if (ratio_director == 1) {
+//                                ratio_director = bmp.getWidth() * 1.0f / bmp.getHeight();
+//                            }
+
+                            int textureId = GpuUtils.createTextureID(false);
+                            textureId_director[i] = textureId;
+                            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
+                            bmp.recycle();
+                        }
                     }
                 } else {
                     deleteDirectorTexture();
@@ -242,13 +301,6 @@ public class WaterMarkFilter extends LazyFilter {
         runOnGLThread(new Runnable() {
             @Override
             public void run() {
-                //  根据屏幕适配 横屏宽度显示一半适配，竖屏显示4/5
-                if (mWidth > mHeight) {
-                    port_director[0] = mWidth / 2;
-                } else {
-                    port_director[0] = mWidth * 4 / 5;
-                }
-                port_director[1] = (int) (port_director[0] / ratio_director);
                 filter_director.sizeChanged(port_director[0], port_director[1]);
             }
         });
@@ -282,16 +334,29 @@ public class WaterMarkFilter extends LazyFilter {
             @Override
             public void run() {
                 if (text != null && !TextUtils.isEmpty(text)) {
-                    // 横屏最大宽度是3/4，竖屏是全屏
-                    maxW = mWidth > mHeight ? mWidth * 3 / 4 : mWidth;
-                    Bitmap bmp = DrawUtils.textToBitmap(text, maxW);
+
+                    // 计算真实高度，传入进去，创建与真实高度一致的图片
+                    float padding_5 = 5f; // 只计算5距离，进去界面单独计算间隔
+                    if (mWidth > mHeight) {  // 横屏 依据横屏适配
+                        port_overview[1] = (int) (mHeight * 20f / 375);
+                        padding_5 = mWidth * 5f / 667;
+                    } else { // 竖屏
+                        port_overview[1] = (int) (mHeight * 20f / 667);
+                        padding_5 = mWidth * 5f / 375;
+                    }
+                    Bitmap bmp = DrawUtils.textToBitmap(text, mWidth, port_overview[1], padding_5);
+
+                    port_overview[0] = bmp.getWidth();
                     // 判断文字是否超过一屏幕，决定动画启动与否
-                    if (bmp.getWidth() - maxW > maxW) {
+                    if (port_overview[0] > mWidth) {
                         canWaterMark = true;
                     }
-                    if (ratio_overView == 1) {
-                        ratio_overView = bmp.getWidth() * 1.0f / bmp.getHeight();
-                    }
+
+                    Log.d("123", "run: bmpW " + bmp.getWidth() + " bmpH " + bmp.getHeight());
+                    Log.d("123", "run: canWaterMark " + canWaterMark + " " + (port_overview[0] - mWidth));
+                    Log.d("123", "run: mWidth " + mWidth + " mHeight " + mHeight);
+                    Log.d("123", "run: port_overview " + port_overview[0] + " port_overview " + port_overview[1]);
+
                     if (textureId_overview == -1) {
                         textureId_overview = GpuUtils.createTextureID(false);
                     } else {
@@ -307,9 +372,6 @@ public class WaterMarkFilter extends LazyFilter {
         runOnGLThread(new Runnable() {
             @Override
             public void run() {
-                //  根据屏幕适配 根据屏幕适配 横屏宽度显示一半适配，竖屏满屏
-                port_overview[1] = height;
-                port_overview[0] = (int) (port_overview[1] * ratio_overView);
                 filter_overview.sizeChanged(port_overview[0], port_overview[1]);
             }
         });
@@ -327,10 +389,81 @@ public class WaterMarkFilter extends LazyFilter {
     // -----------------------------------  set  director  end   ----------------------------------------
 
 
+    // -----------------------------------  set title and location  start   ----------------------------------------
+
+    // 标题
+    public WaterMarkFilter setTextTitleAndLocation(final String title, final String location, final int drawable) {
+        if ((title == null || TextUtils.isEmpty(title)) && (location == null || TextUtils.isEmpty(location))) {
+            isCreateTitle = false;
+            return this;
+        }
+        isCreateTitle = true;
+        runOnGLThread(new Runnable() {
+            @Override
+            public void run() {
+                if ((title != null && !TextUtils.isEmpty(title)) || (location != null && !TextUtils.isEmpty(location))) {
+
+
+                    // 计算真实高度，传入进去，创建与真实高度一致的图片
+                    float padding_5 = 5f; // 只计算5距离，进去界面单独计算间隔
+                    if (mWidth > mHeight) {  // 横屏 依据横屏适配
+                        port_title[1] = (int) (mHeight * 24f / 375);
+                        padding_5 = mWidth * 5f / 667;
+                    } else { // 竖屏
+                        port_title[1] = (int) (mHeight * 24f / 667);
+                        padding_5 = mWidth * 5f / 375;
+                    }
+
+                    Bitmap bmp = DrawUtils.textToBitmap(title, location, drawable, mWidth, port_title[1], padding_5);
+                    ratio_title = bmp.getWidth() * 1.0f / bmp.getHeight();
+                    port_title[0] = (int) (port_title[1] * ratio_title);
+
+
+                    Log.d("123", "run: bmpW " + bmp.getWidth() + " bmpH " + bmp.getHeight());
+                    Log.d("123", "run: mWidth " + mWidth + " mHeight " + mHeight);
+                    Log.d("123", "run: port_title " + port_title[0] + " port_title " + port_title[1]);
+
+
+                    if (textureId_title == -1) {
+                        textureId_title = GpuUtils.createTextureID(false);
+                    } else {
+                        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId_title);
+                    }
+                    GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
+                    bmp.recycle();
+                } else {
+                    deleteTitleAndLocationTexture();
+                }
+            }
+        });
+        runOnGLThread(new Runnable() {
+            @Override
+            public void run() {
+                filter_title.sizeChanged(port_title[0], port_title[1]);
+            }
+        });
+        return this;
+    }
+
+    private void deleteTitleAndLocationTexture() {
+        if (textureId_title != -1) {
+            GLES20.glDeleteTextures(1, new int[]{textureId_title}, 0);
+            textureId_title = -1;
+        }
+    }
+    // -----------------------------------  set  title and location  end   ----------------------------------------
+
+
     @Override
     public void destroy() {
         super.destroy();
+        // logo
+        if (textureId_Logo != -1) {
+            GLES20.glDeleteTextures(1, new int[]{textureId_Logo}, 0);
+            textureId_Logo = -1;
+        }
         deleteDirectorTexture();
         deleteOverViewTexture();
+        deleteTitleAndLocationTexture();
     }
 }
