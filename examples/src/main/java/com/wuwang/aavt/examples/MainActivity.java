@@ -15,6 +15,7 @@ import android.widget.Toast;
 
 import com.wuwang.aavt.av.Mp4Processor;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Date;
 import java.util.Timer;
@@ -101,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK) {
-            String path = getRealFilePath(data.getData());
+            final String path = getRealFilePath(data.getData());
             if (path != null) {
                 Log.d(TAG, "onActivityResult: path: " + path);
 //                mMp4Processor.setInputPath(path);
@@ -184,14 +185,19 @@ public class MainActivity extends AppCompatActivity {
                                     }
 
                                     @Override
-                                    public void onComplete(final String path) {
-                                        Log.d(TAG, "onComplete: " + path);
+                                    public void onComplete(final String outpath) {
+                                        Log.d(TAG, "onComplete: " + outpath);
                                         runOnUiThread(new Runnable() {
                                             @Override
                                             public void run() {
                                                 timerTask.cancel();
                                                 long endTime = new Date().getTime();
                                                 progress.append(" \npath: " + path);
+                                                progress.append(" \noutpath: " + outpath);
+                                                File f = new File(path);
+                                                progress.append(" \ninputSize: " + f.length() / (1024 * 1024.0));
+                                                File f1 = new File(outpath);
+                                                progress.append(" \noutputSize: " + f1.length() / (1024 * 1024.0));
                                                 progress.append(" \n耗时(s): " + (endTime - startTime) / 1000);
 //                                    Intent v=new Intent(Intent.ACTION_VIEW);
 //                                    v.setDataAndType(Uri.parse(path),"video/mp4");

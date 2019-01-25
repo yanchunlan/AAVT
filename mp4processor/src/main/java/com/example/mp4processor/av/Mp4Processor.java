@@ -9,13 +9,10 @@ import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaMuxer;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.v4.content.FileProvider;
 import android.view.Surface;
 
-import com.example.mp4processor.BuildConfig;
 import com.example.mp4processor.core.Renderer;
 import com.example.mp4processor.egl.EGLConfigAttrs;
 import com.example.mp4processor.egl.EGLContextAttrs;
@@ -24,7 +21,6 @@ import com.example.mp4processor.log.AvLog;
 import com.example.mp4processor.media.WrapRenderer;
 import com.example.mp4processor.utils.GpuUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Semaphore;
@@ -227,6 +223,11 @@ public class Mp4Processor {
                     int frameRate = originFormat.containsKey(MediaFormat.KEY_FRAME_RATE) ? originFormat.getInteger(MediaFormat.KEY_FRAME_RATE) : 0;
                     frameRate = frameRate == 0 ? 24 : frameRate;
 
+
+                    String bit = mMetRet.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_BITRATE);
+                    AvLog.d(  "prepare:  bit " + bit);
+                    int bitrate = bit == null ? 0 : Integer.parseInt(bit);
+
                     mTotalVideoTime = Long.valueOf(mMetRet.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
                     String rotation = mMetRet.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
                     if (rotation != null) {
@@ -250,17 +251,31 @@ public class Mp4Processor {
                             mOutputVideoWidth = mInputVideoWidth;
                             mOutputVideoHeight = mInputVideoHeight;
                         }
+                        if (bitrate != 0) {
+                            // 针对模糊视频的处理，增大帧率
+                            if (bitrate < 1000000) {
+                                bitrate *= 1.5;
+                            }  else {
+                                bitrate = mOutputVideoHeight * mOutputVideoWidth * 3;
+                            }
+                        } else {
+                            bitrate = mOutputVideoHeight * mOutputVideoWidth * 3;
+                        }
+
                         MediaFormat videoFormat = MediaFormat.createVideoFormat(/*mime*/"video/avc", mOutputVideoWidth, mOutputVideoHeight);
                         videoFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-                        videoFormat.setInteger(MediaFormat.KEY_BIT_RATE, mOutputVideoHeight * mOutputVideoWidth * 3);
+                        AvLog.d("prepare:  bitrate " + bitrate);
+
+                        videoFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
                         videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);
-                        videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, frameRate * 10);
+//                        videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, frameRate * 10);
+                        videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
                         mVideoEncoder = MediaCodec.createEncoderByType(/*mime*/"video/avc");
                         mVideoEncoder.configure(videoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
                         mOutputSurface = mVideoEncoder.createInputSurface();
                         Bundle bundle = new Bundle();
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                            bundle.putInt(MediaCodec.PARAMETER_KEY_VIDEO_BITRATE, mOutputVideoHeight * mOutputVideoWidth * 3);
+                            bundle.putInt(MediaCodec.PARAMETER_KEY_VIDEO_BITRATE, bitrate);
                             mVideoEncoder.setParameters(bundle);
                         }
                     }
