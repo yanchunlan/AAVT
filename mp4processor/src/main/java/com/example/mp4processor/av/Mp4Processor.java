@@ -43,6 +43,7 @@ public class Mp4Processor {
     //private MediaCodec mAudioDecoder;           //音频解码器
     //private MediaCodec mAudioEncoder;           //音频编码器
     private MediaExtractor mExtractor;          //音视频分离器
+    private MediaExtractor mExtractor_audio;          //音视频分离器
     private MediaMuxer mMuxer;                  //音视频混合器
     private EglHelper mEGLHelper;               //GL环境创建的帮助类
     private MediaCodec.BufferInfo mVideoDecoderBufferInfo;  //用于存储当前帧的视频解码信息
@@ -190,14 +191,15 @@ public class Mp4Processor {
             }
             mExtractor = new MediaExtractor();
             mExtractor.setDataSource(mInputPath);
-            int count = mExtractor.getTrackCount();
+            mExtractor_audio = new MediaExtractor();
+            mExtractor_audio.setDataSource(mInputPath);
             //解析Mp4
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < mExtractor.getTrackCount(); i++) {
                 MediaFormat format = mExtractor.getTrackFormat(i);
                 String mime = format.getString(MediaFormat.KEY_MIME);
                 AvLog.d("extractor format-->" + mExtractor.getTrackFormat(i));
                 if (mime.startsWith("audio")) {
-                    mAudioDecoderTrack = i;
+//                    mAudioDecoderTrack = i;
                     //todo 暂时不对音频处理，后续需要对音频处理时再修改这个
                     /*mAudioDecoder=MediaCodec.createDecoderByType(mime);
                     mAudioDecoder.configure(format,null,null,0);
@@ -256,12 +258,12 @@ public class Mp4Processor {
                             if (bitrate < 1000000) {
                                 bitrate *= 1.5;
                             }  else {
-                                bitrate = mOutputVideoHeight * mOutputVideoWidth * 3;
+                                bitrate = mOutputVideoHeight * mOutputVideoWidth * 4;
                             }
                         } else {
-                            bitrate = mOutputVideoHeight * mOutputVideoWidth * 3;
+                            bitrate = mOutputVideoHeight * mOutputVideoWidth * 4;
                         }
-
+                        AvLog.d("prepare:  mOutputVideoHeight " + mOutputVideoHeight+" mOutputVideoWidth "+mOutputVideoWidth);
                         MediaFormat videoFormat = MediaFormat.createVideoFormat(/*mime*/"video/avc", mOutputVideoWidth, mOutputVideoHeight);
                         videoFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
                         AvLog.d("prepare:  bitrate " + bitrate);
@@ -281,6 +283,15 @@ public class Mp4Processor {
                     }
                 }
             }
+            for (int i = 0; i < mExtractor_audio.getTrackCount(); i++) {
+                MediaFormat format = mExtractor_audio.getTrackFormat(i);
+                String mime = format.getString(MediaFormat.KEY_MIME);
+                AvLog.d("extractor format-->" + mExtractor_audio.getTrackFormat(i));
+                if (mime.startsWith("audio")) {
+                    mAudioDecoderTrack = i;
+                }
+            }
+
             if (!isRenderToWindowSurface) {
                 //如果用户没有设置渲染到指定Surface，就需要导出视频，暂时不对音频做处理
                 mMuxer = new MediaMuxer(mOutputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
@@ -288,7 +299,7 @@ public class Mp4Processor {
                 AvLog.d("video rotation:" + videoRotation);
                 //如果mp4中有音轨
                 if (mAudioDecoderTrack >= 0) {
-                    MediaFormat format = mExtractor.getTrackFormat(mAudioDecoderTrack);
+                    MediaFormat format = mExtractor_audio.getTrackFormat(mAudioDecoderTrack);
                     AvLog.d("audio track-->" + format.toString());
 
                     mAudioEncoderTrack = mMuxer.addTrack(format);
@@ -351,6 +362,9 @@ public class Mp4Processor {
                         if (mAudioDecoderTrack >= 0 && mVideoEncoderTrack >= 0) {
                             ByteBuffer buffer = ByteBuffer.allocate(1024 * 32);
                             while (mCodecFlag && !audioDecodeStep(buffer)) {
+                                if (isUserWantToStop) {
+                                    break;
+                                }
                             }
                             ;
                             buffer.clear();
@@ -417,20 +431,21 @@ public class Mp4Processor {
         boolean isTimeEnd = false;
         buffer.clear();
         synchronized (Extractor_LOCK) {
-            mExtractor.selectTrack(mAudioDecoderTrack);
-            int length = mExtractor.readSampleData(buffer, 0);
+            mExtractor_audio.selectTrack(mAudioDecoderTrack);
+            int length = mExtractor_audio.readSampleData(buffer, 0);
             if (length != -1) {
-                int flags = mExtractor.getSampleFlags();
+                int flags = mExtractor_audio.getSampleFlags();
                 mAudioEncoderBufferInfo.size = length;
                 mAudioEncoderBufferInfo.flags = flags;
-                mAudioEncoderBufferInfo.presentationTimeUs = mExtractor.getSampleTime();
+                mAudioEncoderBufferInfo.presentationTimeUs = mExtractor_audio.getSampleTime();
                 mAudioEncoderBufferInfo.offset = 0;
                 AvLog.d("audio sampleTime=" + mAudioEncoderBufferInfo.presentationTimeUs);
-                isTimeEnd = mExtractor.getSampleTime() >= mVideoStopTimeStamp;
+                isTimeEnd = mExtractor_audio.getSampleTime() >= mVideoStopTimeStamp;
                 mMuxer.writeSampleData(mAudioEncoderTrack, buffer, mAudioEncoderBufferInfo);
             }
-            isAudioExtractorEnd = !mExtractor.advance();
+            isAudioExtractorEnd = !mExtractor_audio.advance();
         }
+        AvLog.d("isAudioExtractorEnd "+isAudioExtractorEnd+" isTimeEnd "+isTimeEnd);
         return isAudioExtractorEnd || isTimeEnd;
     }
 
@@ -615,6 +630,9 @@ public class Mp4Processor {
             }
             if (mExtractor != null) {
                 mExtractor.release();
+            }
+            if (mExtractor_audio != null) {
+                mExtractor_audio.release();
             }
             isStarted = false;
             mVideoEncoderTrack = -1;
