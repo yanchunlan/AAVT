@@ -19,6 +19,7 @@ import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.support.annotation.DrawableRes;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Gravity;
 
 import com.example.mp4processor.utils.DrawUtils;
@@ -48,7 +49,7 @@ public class WaterMarkFilter extends LazyFilter {
     private int[] port_director = new int[2];
     private LazyFilter filter_director = null;
     private int[] textureId_director = null;
-//    private float ratio_director = 1;  //  ratio=w/h
+    //    private float ratio_director = 1;  //  ratio=w/h
     private boolean isCreateDirector = false;
     private final Object director_Lock = new Object();
     private final int bmpNumber = 5;  // 控制动画的帧数
@@ -63,7 +64,7 @@ public class WaterMarkFilter extends LazyFilter {
     // Overview动画
     private int lastX = 0; // 不断累加x，平移图片达到动画效果
     private boolean canWaterMark = false;
-    private final int speed = 3; //水印滚动速度
+    private int transX = 0;
 
     // title location
     private int[] port_title = new int[2];
@@ -160,11 +161,16 @@ public class WaterMarkFilter extends LazyFilter {
             // 绘制概述信息
             if (textureId_overview != -1) {
                 if (canWaterMark && time > 2000000000L) { // 大于2s才开始动画
-                    lastX -= speed;
-                    // 重复动画
-                    if (lastX <= (-port_overview[0] + mWidth)) {
-                        lastX = speed * 3;
-                    }
+                    time -= 2000000000L;
+
+                    transX = (int) (time / 1000000000.0f * (mWidth > mHeight?25:45)); // 1s移动100   计算当前时间占据的比列 (time / 1000000000.0f * (mWidth / 10.0f))
+                    int score = transX / (port_overview[0]-mWidth); // 是否有超过屏幕的次数
+                    lastX = -transX+(score*(port_overview[0]-mWidth)); // 加上超过屏幕的长度
+
+                    Log.d("123", "port_overview[0] " + port_overview[0]
+                            + " mWidth " + mWidth
+                            + " mHeight " + mHeight
+                            + " transX " + transX + " score" + score+" lastX "+lastX);
                 }
                 GLES20.glViewport(lastX, 0, port_overview[0], port_overview[1]);
                 filter_overview.draw(textureId_overview);
@@ -272,12 +278,12 @@ public class WaterMarkFilter extends LazyFilter {
                     }
                     List<Bitmap> bmpData = DrawUtils.createTextImage(c, drawable, bmpNumber, title, desc,
                             port_director[0], port_director[1], textHeight, padding_5, new DrawUtils.CallBack() {
-                        @Override
-                        public void callBackWH(int width, int height) {
-                            port_director[0] = width;
-                            port_director[1] = height;
-                        }
-                    });
+                                @Override
+                                public void callBackWH(int width, int height) {
+                                    port_director[0] = width;
+                                    port_director[1] = height;
+                                }
+                            });
                     // ------------------------ end ----------------------
 
                     if (bmpData != null && !bmpData.isEmpty()) {
@@ -358,10 +364,10 @@ public class WaterMarkFilter extends LazyFilter {
                     // 计算真实高度，传入进去，创建与真实高度一致的图片
                     float padding_5 = 5f; // 只计算5距离，进去界面单独计算间隔
                     if (mWidth > mHeight) {  // 横屏 依据横屏适配
-                        port_overview[1] = (int) (mHeight * 20f / 375);
+                        port_overview[1] = (int) (mHeight * 24f / 375);
                         padding_5 = mWidth * 5f / 667;
                     } else { // 竖屏
-                        port_overview[1] = (int) (mHeight * 20f / 667);
+                        port_overview[1] = (int) (mHeight * 24f / 667);
                         padding_5 = mWidth * 5f / 375;
                     }
                     Bitmap bmp = DrawUtils.textToBitmap(text, mWidth, port_overview[1], padding_5);
@@ -423,10 +429,10 @@ public class WaterMarkFilter extends LazyFilter {
                     // 计算真实高度，传入进去，创建与真实高度一致的图片
                     float padding_5 = 5f; // 只计算5距离，进去界面单独计算间隔
                     if (mWidth > mHeight) {  // 横屏 依据横屏适配
-                        port_title[1] = (int) (mHeight * 24f / 375);
+                        port_title[1] = (int) (mHeight * 26f / 375);
                         padding_5 = mWidth * 5f / 667;
                     } else { // 竖屏
-                        port_title[1] = (int) (mHeight * 24f / 667);
+                        port_title[1] = (int) (mHeight * 26f / 667);
                         padding_5 = mWidth * 5f / 375;
                     }
                     Bitmap bmp = DrawUtils.textToBitmap(context, title, location, drawable, mWidth, port_title[1], padding_5);

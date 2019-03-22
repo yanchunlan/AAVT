@@ -45,6 +45,7 @@ public class Mp4Processor {
     private MediaExtractor mExtractor;          //音视频分离器
     private MediaExtractor mExtractor_audio;          //音视频分离器
     private MediaMuxer mMuxer;                  //音视频混合器
+    //    private long presentationTimeUs_temp = -1; // 防止乱序帧,记录时间，放置乱序帧
     private EglHelper mEGLHelper;               //GL环境创建的帮助类
     private MediaCodec.BufferInfo mVideoDecoderBufferInfo;  //用于存储当前帧的视频解码信息
     //private MediaCodec.BufferInfo mAudioDecoderBufferInfo;  //用于存储当前帧的音频解码信息
@@ -182,19 +183,20 @@ public class Mp4Processor {
         synchronized (PROCESS_LOCK) {
             int videoRotation = 0;
             MediaMetadataRetriever mMetRet = new MediaMetadataRetriever();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
 //                Uri contentUri = FileProvider.getUriForFile(c.getApplicationContext(),
-//                        BuildConfig.APPLICATION_ID, new File(mInputPath));
-                mMetRet.setDataSource(mInputPath);
-            } else {
-                mMetRet.setDataSource(mInputPath);
-            }
+//                        "com.xianghe.ivy.fileprovider", new File(mInputPath));
+//                mMetRet.setDataSource(c.getApplicationContext(), contentUri);
+//            } else {
+            mMetRet.setDataSource(mInputPath);
+//            }
             mExtractor = new MediaExtractor();
             mExtractor.setDataSource(mInputPath);
             mExtractor_audio = new MediaExtractor();
             mExtractor_audio.setDataSource(mInputPath);
+            int count = mExtractor.getTrackCount();
             //解析Mp4
-            for (int i = 0; i < mExtractor.getTrackCount(); i++) {
+            for (int i = 0; i < count; i++) {
                 MediaFormat format = mExtractor.getTrackFormat(i);
                 String mime = format.getString(MediaFormat.KEY_MIME);
                 AvLog.d("extractor format-->" + mExtractor.getTrackFormat(i));
@@ -225,12 +227,13 @@ public class Mp4Processor {
                     int frameRate = originFormat.containsKey(MediaFormat.KEY_FRAME_RATE) ? originFormat.getInteger(MediaFormat.KEY_FRAME_RATE) : 0;
                     frameRate = frameRate == 0 ? 24 : frameRate;
 
-
                     String bit = mMetRet.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_BITRATE);
-                    AvLog.d(  "prepare:  bit " + bit);
+                    AvLog.d("prepare:  bit " + bit);
                     int bitrate = bit == null ? 0 : Integer.parseInt(bit);
 
+
                     mTotalVideoTime = Long.valueOf(mMetRet.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+                    AvLog.d("mTotalVideoTime: " + mTotalVideoTime);
                     String rotation = mMetRet.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
                     if (rotation != null) {
                         videoRotation = Integer.valueOf(rotation);
@@ -253,25 +256,35 @@ public class Mp4Processor {
                             mOutputVideoWidth = mInputVideoWidth;
                             mOutputVideoHeight = mInputVideoHeight;
                         }
+                        int whBit = mOutputVideoHeight * mOutputVideoWidth * 4;
                         if (bitrate != 0) {
                             // 针对模糊视频的处理，增大帧率
                             if (bitrate < 1000000) {
-                                bitrate *= 1.5;
-                            }  else {
-                                bitrate = mOutputVideoHeight * mOutputVideoWidth * 4;
+                                int currentBit_15 = (int) (bitrate * 1.5);
+                                // 取最大值
+                                bitrate = whBit > currentBit_15 ? whBit : currentBit_15;
+                            } else {
+                                bitrate = whBit > bitrate ? whBit : bitrate;
                             }
                         } else {
-                            bitrate = mOutputVideoHeight * mOutputVideoWidth * 4;
+                            bitrate = whBit > bitrate ? whBit : bitrate;
                         }
-                        AvLog.d("prepare:  mOutputVideoHeight " + mOutputVideoHeight+" mOutputVideoWidth "+mOutputVideoWidth);
+                        AvLog.d("prepare:  bitrate " + bitrate);
                         MediaFormat videoFormat = MediaFormat.createVideoFormat(/*mime*/"video/avc", mOutputVideoWidth, mOutputVideoHeight);
                         videoFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-                        AvLog.d("prepare:  bitrate " + bitrate);
-
                         videoFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
                         videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);
-//                        videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, frameRate * 10);
                         videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            AvLog.d("SDK_INT > N ");
+                            // 7.0以下不支持设置Profile和Level，而应该采用默认设置 baseLine
+                            videoFormat.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh);
+                            videoFormat.setInteger("level", MediaCodecInfo.CodecProfileLevel.AVCLevel41); // Level 4.1
+                        } else {
+                            AvLog.d("SDK_INT < N ");
+                        }
+
                         mVideoEncoder = MediaCodec.createEncoderByType(/*mime*/"video/avc");
                         mVideoEncoder.configure(videoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
                         mOutputSurface = mVideoEncoder.createInputSurface();
@@ -281,6 +294,7 @@ public class Mp4Processor {
                             mVideoEncoder.setParameters(bundle);
                         }
                     }
+                    break;
                 }
             }
             for (int i = 0; i < mExtractor_audio.getTrackCount(); i++) {
@@ -289,14 +303,14 @@ public class Mp4Processor {
                 AvLog.d("extractor format-->" + mExtractor_audio.getTrackFormat(i));
                 if (mime.startsWith("audio")) {
                     mAudioDecoderTrack = i;
+                    break;
                 }
             }
-
             if (!isRenderToWindowSurface) {
                 //如果用户没有设置渲染到指定Surface，就需要导出视频，暂时不对音频做处理
                 mMuxer = new MediaMuxer(mOutputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
 //                mMuxer.setOrientationHint(videoRotation);
-                AvLog.d("video rotation:" + videoRotation);
+//                AvLog.d("video rotation:" + videoRotation);
                 //如果mp4中有音轨
                 if (mAudioDecoderTrack >= 0) {
                     MediaFormat format = mExtractor_audio.getTrackFormat(mAudioDecoderTrack);
@@ -304,6 +318,10 @@ public class Mp4Processor {
 
                     mAudioEncoderTrack = mMuxer.addTrack(format);
                 }
+            }
+            if (mMetRet != null) {
+                mMetRet.release();
+                mMetRet = null;
             }
         }
         return true;
@@ -320,6 +338,7 @@ public class Mp4Processor {
 
                 isUserWantToStop = false;
                 isVideoExtractorEnd = false;
+//                presentationTimeUs_temp = -1;
 
 
                 mGLThreadFlag = true;
@@ -360,6 +379,7 @@ public class Mp4Processor {
                         }
                         //将原视频中的音频复制到新视频中
                         if (mAudioDecoderTrack >= 0 && mVideoEncoderTrack >= 0) {
+//                            presentationTimeUs_temp = -1;
                             ByteBuffer buffer = ByteBuffer.allocate(1024 * 32);
                             while (mCodecFlag && !audioDecodeStep(buffer)) {
                                 if (isUserWantToStop) {
@@ -441,11 +461,21 @@ public class Mp4Processor {
                 mAudioEncoderBufferInfo.offset = 0;
                 AvLog.d("audio sampleTime=" + mAudioEncoderBufferInfo.presentationTimeUs);
                 isTimeEnd = mExtractor_audio.getSampleTime() >= mVideoStopTimeStamp;
-                mMuxer.writeSampleData(mAudioEncoderTrack, buffer, mAudioEncoderBufferInfo);
+                try { // java.lang.IllegalStateException: writeSampleData returned an error 暂时捕获不处理-待测试
+                    AvLog.d("writeSampleData");
+//                    if (mAudioEncoderBufferInfo.presentationTimeUs > presentationTimeUs_temp) {
+                    AvLog.d("writeSampleData audio");
+                    mMuxer.writeSampleData(mAudioEncoderTrack, buffer, mAudioEncoderBufferInfo);
+//                    } else {
+//                        AvLog.d("writeSampleData  audio error");
+//                    }
+//                    presentationTimeUs_temp = mAudioEncoderBufferInfo.presentationTimeUs;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
             isAudioExtractorEnd = !mExtractor_audio.advance();
         }
-        AvLog.d("isAudioExtractorEnd "+isAudioExtractorEnd+" isTimeEnd "+isTimeEnd);
         return isAudioExtractorEnd || isTimeEnd;
     }
 
@@ -524,7 +554,17 @@ public class Mp4Processor {
                 AvLog.d("video offset -->" + mVideoEncoderBufferInfo.offset);
                 AvLog.d("video size -->" + mVideoEncoderBufferInfo.size);
                 if (mVideoEncoderBufferInfo.size > 0) {
-                    mMuxer.writeSampleData(mVideoEncoderTrack, buffer, mVideoEncoderBufferInfo);
+//                    if (mVideoEncoderBufferInfo.presentationTimeUs > presentationTimeUs_temp) {
+                    AvLog.d("writeSampleData video");
+                    try {
+                        mMuxer.writeSampleData(mVideoEncoderTrack, buffer, mVideoEncoderBufferInfo);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+//                    } else {
+//                        AvLog.d("writeSampleData video error");
+//                    }
+//                    presentationTimeUs_temp = mVideoEncoderBufferInfo.presentationTimeUs;
                 }
                 mVideoEncoder.releaseOutputBuffer(mOutputIndex, false);
             } else if (mOutputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
@@ -532,6 +572,7 @@ public class Mp4Processor {
                 AvLog.d("video format -->" + format.toString());
                 mVideoEncoderTrack = mMuxer.addTrack(format);
                 AvLog.d("video mVideoEncoderTrack -->" + mVideoEncoderTrack);
+                AvLog.d("mMuxer.start");
                 mMuxer.start();
                 synchronized (MUX_LOCK) {
                     MUX_LOCK.notifyAll();
@@ -639,6 +680,8 @@ public class Mp4Processor {
             mVideoDecoderTrack = -1;
             mAudioEncoderTrack = -1;
             mAudioDecoderTrack = -1;
+
+//            presentationTimeUs_temp = -1;
         }
     }
 

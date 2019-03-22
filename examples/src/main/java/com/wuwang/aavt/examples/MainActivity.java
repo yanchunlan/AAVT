@@ -168,7 +168,7 @@ public class MainActivity extends AppCompatActivity {
                                 R.mipmap.icon_place_stroke,
                                 title,
                                 desc,
-                                "ssssssssssssssssssssssssss",
+                                "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
                                 "ttttttttttttttt",
                                 "location",
                                 MainActivity.this,
